@@ -1,13 +1,12 @@
 import logging
 import machine
 import utime
-from m5stack import lcd
 
 # global variables
 
 logger = None
 
-# decoretor
+# decorator
 
 
 def iofunc(func):
@@ -17,7 +16,7 @@ def iofunc(func):
         response = func(obj, *args)
         if (response):
             logger.debug('< %s', response.decode().strip())
-        utime.sleep(0.5)
+        # utime.sleep(0.5)
         return response
 
     return wrapper
@@ -26,13 +25,13 @@ def iofunc(func):
 def skfunc(func):
     def wrapper(obj, *args, **kwds):
         logger.debug('%s', func.__name__)
-        utime.sleep(0.5)
+        # utime.sleep(0.5)
         response = func(obj, *args, **kwds)
         if response:
             logger.info('%s: Succeed', func.__name__)
         else:
             logger.error('%s: Failed', func.__name__)
-        utime.sleep(0.5)
+        # utime.sleep(0.5)
         return response
 
     return wrapper
@@ -43,15 +42,13 @@ def propfunc(func):
         logger.info('%s: %s', func.__name__, args)
         response = func(obj, *args, **kwds)
         logger.info('%s: %s', func.__name__, response)
-        utime.sleep(0.5)
+        # utime.sleep(0.5)
         return response
 
     return wrapper
 
 
-# date time function
-
-
+# date time function　　[y, m, d] の曜日を求める 0 = 日曜日　｛未使用｝
 def day_of_week(y, m, d):
     t = (0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4)
     if m < 3:
@@ -59,6 +56,7 @@ def day_of_week(y, m, d):
     return (y + y // 4 - y // 100 + y // 400 + t[m - 1] + d) % 7
 
 
+#　[y, m, d] が、1月1日から何日目かを求める
 def days_of_year(y, m, d):
     t = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
     if m > 2 and (y % 4 == 0) and (y % 100 == 0 or y % 400 != 0):
@@ -76,15 +74,20 @@ def strftime(tm, *, fmt='{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}'):
     return fmt.format(year, month, mday, hour, minute, second)
 
 
-def days_after_collect(collect_mday):
-    (year, month, mday) = localtime()[:3]
-    if month == 1:
-        return 31 - collect_mday + mday
-    days1 = days_of_year(year, month, mday)
-    if mday < collect_mday:
-        month -= 1
-    days2 = days_of_year(year, month, collect_mday)
-    return days1 - days2
+# 直近の検針日 collect_date からの経過日数を求める
+def days_after_collect(collect_date):
+    (year, month, today) = localtime()[:3]
+    days1 = days_of_year(year, month, today)  # days1 1月1日からの経過日数
+    if today < collect_date[month] :    # 今日が今月の検針日より前なら
+        mday = collect_date[month - 1]      # 起点は前月の検針日
+        if month == 1 :                     # 検針日より前かつ1月なら
+            return 31 - mday + today        # 検針日からの経過日数を返す
+        else :                              # 検針日より前で1月以外なら
+            days2 = days_of_year(year, month - 1, mday) # 前月検針日の経過日数
+    else :                              # 今日が今月の検針日以後なら
+        mday = collect_date[month]          # 起点は当月の検針日
+        days2 = days_of_year(year, month, mday) # 今月検針日の経過日数
+    return days1 - days2  # [今日 - 直近検針日] を返す
 
 
 def last_colect_day(collect_mday):
@@ -107,15 +110,21 @@ class BP35A1:
                  logger_name=__name__):
         global logger
         logger = logging.getLogger(logger_name)
+        # TODO: debug 
+        logger.setLevel(logging.DEBUG)
+
         self.progress = progress_func if progress_func else lambda _: None
 
-        self.uart = machine.UART(1, tx=0, rx=36)
+        # Wi-SUN HAT rev2.0 GPIO for UART rx changed to 26 (rev1.0 was 36)
+        ##self.uart = machine.UART(1, tx=0, rx=36)
+        self.uart = machine.UART(1, tx=0, rx=26)
         self.uart.init(115200, bits=8, parity=None, stop=1, timeout=2000)
+        self.uart = open('stdin')
 
         self.id = id
         self.password = password
         self.contract_amperage = int(contract_amperage)
-        self.collect_date = int(collect_date)
+        self.collect_date = collect_date if isinstance(collect_date, list) else [int(collect_date)]*13
 
         self.channel = None
         self.pan_id = None
@@ -128,7 +137,7 @@ class BP35A1:
 
         self.timeout = 60
 
-    def flash(self):
+    def flush(self):
         utime.sleep(0.5)
         while self.uart.any():
             _ = self.uart.read()
@@ -257,7 +266,7 @@ class BP35A1:
         return True
 
     @propfunc
-    def read_propaty(self, epc):
+    def read_property(self, epc):
         """
         プロパティ値読み出し
         """
@@ -296,7 +305,7 @@ class BP35A1:
         """
         # バッファをクリア
         self.progress(0)
-        self.flash()
+        self.flush()
 
         # BP53A1の初期化
         self.progress(10)
@@ -335,11 +344,11 @@ class BP35A1:
 
                 # 係数(D3)の取得
                 self.progress(80)
-                self.power_coefficient = self.read_propaty('D3')
+                self.power_coefficient = self.read_property('D3')
 
                 # 積算電力量単位(E1)の取得
                 self.progress(90)
-                self.power_unit = self.read_propaty('E1')
+                self.power_unit = self.read_property('E1')
 
                 self.progress(100)
                 return (self.channel, self.pan_id, self.mac_addr, self.lqi)
@@ -351,32 +360,32 @@ class BP35A1:
         """
         積算電力量計測値(EA)の取得
         """
-        return self.read_propaty('EA')
+        return self.read_property('EA')
 
     def instantaneous_power(self):
         """
         瞬時電力計測値(E7)の取得
         """
-        return self.read_propaty('E7')
+        return self.read_property('E7')
 
     def instantaneous_amperage(self):
         """
         瞬時電流計測値(E8)の取得
         """
-        return self.read_propaty('E8')
+        return self.read_property('E8')
 
     def monthly_power(self):
         """
-        前回検針日を起点とした積算電力量計測値履歴１(E2)の取得
+        前回検針日を起点とした積算電力量計測値履歴１(E2)の取得
         """
         # 積算履歴収集日１(E5)の設定
         self.write_property('E5', days_after_collect(self.collect_date))
 
         # 積算電力量計測値履歴１(E2)の取得
-        (days, collected_power) = self.read_propaty('E2')
+        (days, collected_power) = self.read_property('E2')
 
         # 瞬時電力計測値(E7)の取得
-        (created, power) = self.read_propaty('EA')
+        (created, power) = self.read_property('EA')
 
         # 前回検針日と積算電力量計測値(EA)との差分
         return (last_colect_day(self.collect_date), power - collected_power)
@@ -483,12 +492,16 @@ class BP35A1:
 
 
 if __name__ == '__main__':
+    # TODO: unit test
     id = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
     password = 'xxxxxxxxxxxx'
-    contract_amperage = "50"
-    collect_date = "22"
+    contract_amperage = 60
+    collect_date = 4
 
-    bp35a1 = BP35A1(id, password, contract_amperage, collect_date)
+    def progress_log(pct):
+        print("progress:", pct)
+
+    bp35a1 = BP35A1(id, password, contract_amperage, collect_date, progress_func=progress_log)
 
     bp35a1.open()
 
