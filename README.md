@@ -1,40 +1,40 @@
 # SmartMeter
 
-M5StickC と BP35A1、Wi-SUN Hat を組み合わせたスマートメーターモニタ
+Part of my Japan "Smart Home" Project: Monitor energy usage in real-time and publish into Home Assistant for trending and analysis. 
 
-![Smart Meter Monitor](https://user-images.githubusercontent.com/129797/83958481-5198d300-a8ad-11ea-9cba-ddc13c4ae0b1.jpg)
+As of 2026, most if not all meters in Japan have been upgraded to ![Smart Meter](https://www.tepco.co.jp/en/pg/development/domestic/smartmeter-e.html) which supports the so called "Route B" service, publishing electricity meter data in real-time over a 920Mhz radio (![Wi-SUN](https://wi-sun.org/about/)) Any consumer can apply for Route B login credential and, with the right hardware and software, connect to the smart meter at home to monitor energy usage. This forms part of the ![ECHONET Lite](https://echonet.jp/features_en/) standard which details the communication protocol between hundreds of different types of home appliances to enable home energy management systems.
 
-2016 年からアナログの電力量計からデジタルのスマートメーターへのリプレイスが始まっています。スマートメーターへのアクセスは電力会社が利用する A ルートの他に、申し込めば誰でも使える B ルートが用意されており、申し込みをすれば無料で自宅のスマートメーター にアクセスできます。ただ、スマートメータとの通信は、Wi-SUN(Wireless Smart Utility Network : 特定小電力無線)経由となるため、対応した通信機器が必要になります。
+## Why another fork?
 
-簡易にやるのであれば、[Nature Remo E/Nature Remo E lite](https://nature.global/jp/nature-remo-e)を購入するだけで、スマホでモニタリングやコントロールができるようになるのですが、やっぱり自分でやって見たいよねと言うことでプロジェクトをはじめました。
+A number of similar projects had existed for some time and I ended up chosing Miyaichi-san's design as the baseline to build on. Reasons being:
 
-調べてみると、先人はたくさんおられ、特に[M5StickC で家庭用スマートメーターをハックする！](https://kitto-yakudatsu.com/archives/7206)という、M5StickC を使った完成度の高いものが見つかりました。
+- Micropython being a scripting language allows for rapid iteration, perfect for someone learning about IoT dev
+- ![M5Stick](https://docs.m5stack.com/zh_CN/core/M5StickC%20PLUS2) is a slick ESP32 device with its own screen to show real-time data at a glance
+- Simple and lightweight code base with minimal library dependencies as a starting point, for example a popular project supports relaying data to a another child device for visualizations etc. which I won't need as I plan to integrate with Home Assistant
 
-さっそく、Visual Studio Code で M5StickC の micropython 環境を作り、試したところ、あっという間にスマートメーター の情報が取得できましたが、やはり、車輪は再発明するもの(笑)、新たにコードを書くことにしました。
+## Features planned
 
-## Feature
+- Support the newer device M5StickC-PLUS2 -- some GPIO changes from the original M5StickC
+- Migrate to the latest UIFlow 2.0 firmware (V2.4.3) based on Micropython v1.25.0 -- major API changes with the unified M5 library replacing the legacy M5Stack library
+- Run as an energy sensor to publish real-time usage data into Home Assistant over MQTT
+- Improve accuracy of Tepco charge calculator -- support ![検針日](https://www.tepco.co.jp/pg/consignment/liberalization/kyoukyusya/change/retail/calendar.html) meter reading calendar including utility scripts to scrap data off the TEPCO web site
 
-- 現在の電流、電力の情報を表示します。
-- 今月（検針日を起点）の電力量を表示します。
-- 今月の電気料金を計算し表示します。また、電気料金計算方法はカスタマイズが可能です。
-- A ボタンでで画面の上下をコントロールできます。
-- Ambient に電流、電力、電力量、電気料金の情報を送信できます。
+## Route B Service
 
-## B Route Service
+- Apply online for the ![Route B Service](https://www.tepco.co.jp/pg/consignment/liberalization/smartmeter-broute.html) -- this link is for TEPCO but there should be similar links for other providers
+- You will receive an email from route_b_information@tepco.co.jp containing a 12-character password -- note that the embedded spaces are just there for readability and are not part of the password!
+- Interestingly, you will only receive the 32-character user ID by post (same address as your billing address) -- why is this not the other way round is beyond me. Similarly note that the embedded spaces are just there for readability
 
-まずは、B ルートサービスの申し込みが必要です、東京電力であれば、[電力メーター情報発信サービス（B ルートサービス）](https://www.tepco.co.jp/pg/consignment/liberalization/smartmeter-broute.html)から、他の電力会社も同様のサービスをしていますので、契約している電力会社を確認してください。
+## Hardware
 
-申し込みが完了すると、認証 ID とパスワードが送られてきますので、これでスマートメーターアクセスできるようになります。
+- ![M5StickC-PLUS2](https://www.switch-science.com/products/9350) - ESP32 controller with a nice color display and expandable I/O
+- Note that the new board ![M5StickS3](https://www.switch-science.com/products/10921) released in March 2026 is sadly pin-incompatible with Wi-SUN HAT (HAT2 is now 16-pin) It also lacks RTC, so may not be ideal for real-time energy tracking use cases
+- ![BP35A1](https://www.rohm.com/products/wireless-communication/specified-low-power-radio-modules/bp35a1-product#productDetail) -- Wi-SUN Compatible Wireless Module, EOL as of 2026 so only available while stock lasts
+- ![BP35C1-J11-T01]() -- alternative to BP35A1, evaluation board for the newer BP35C0-J11 module
+- ![Wi-SUN HAT rev0.2](https://booth.pm/ja/items/1650727) -- M5Stick HAT kit for the Wi-SUN module, make sure to buy the matching version for BP35A1 vs. BP35C1-J11-T01
 
-## Hardeware
-
-M5StickC と BP35A1、BP35A1 をいい感じで M5StickC 用の HAT にしてくれる Wi-Sun HAT キットを用意します。
-
-- [M5StickC](https://www.switch-science.com/catalog/5517/)
-- [特定省電力無線モジュール BP35A1](https://jp.rs-online.com/web/p/wlan-modules/8273170/)
-- [M5StickC 用「Wi-SUN HAT」キット](https://booth.pm/ja/items/1650727)
-
-BP35A1 は 7,500-12,000 円ぐらいするので、総額では Nature Remo E Lite 12,800 円といい勝負になってしまうのが課題です。
+---
+TODO: update
 
 ## Software
 
