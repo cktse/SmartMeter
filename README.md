@@ -30,8 +30,9 @@ While a number of similar projects had existed for some time, I ended up chosing
 - [M5StickC-PLUS2](https://www.switch-science.com/products/9350) - ESP32 controller with a nice color display and expandable I/O
 - Note that the new board [M5StickS3](https://www.switch-science.com/products/10921) released in March 2026 is sadly pin-incompatible with Wi-SUN HAT (HAT2 is now 16-pin) It also lacks RTC, so may not be ideal for real-time energy tracking use cases
 - [BP35A1](https://www.rohm.com/products/wireless-communication/specified-low-power-radio-modules/bp35a1-product#productDetail) -- Wi-SUN Compatible Wireless Module, EOL as of 2026 so only available while stock lasts
-- [BP35C1-J11-T01]() -- alternative to BP35A1, evaluation board for the newer BP35C0-J11 module
-- [Wi-SUN HAT rev0.2](https://booth.pm/ja/items/1650727) -- M5Stick HAT kit for the Wi-SUN module, make sure to buy the matching version for BP35A1 vs. BP35C1-J11-T01
+- [BP35C1-J11-T01]() -- alternative to BP35A1, evaluation board for the newer, surface mount [BP35C0-J11](https://www.rohm.com/products/wireless-communication/specified-low-power-radio-modules/bp35c0-j11-product) module
+- [Wi-SUN HAT rev0.2](https://booth.pm/ja/items/1650727) -- M5Stick HAT kit for the Wi-SUN module, make sure to buy the matching version for BP35A1 vs. BP35C1-J11-T01.
+- If you end up finding an old rev0.1 stock, you will need to modify the python code to use GPIO pin 36 instead of 26 for the UART Rx line.
 
 ---
 TODO: update
