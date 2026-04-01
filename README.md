@@ -1,37 +1,37 @@
 # SmartMeter
 
-Part of my Japan "Smart Home" Project: Monitor energy usage in real-time and publish into Home Assistant for trending and analysis. 
+Part of my Japan "Smart Home" Project: monitor energy usage in real-time and publish into Home Assistant for trending and analysis. 
 
-As of 2026, most if not all meters in Japan have been upgraded to ![Smart Meter](https://www.tepco.co.jp/en/pg/development/domestic/smartmeter-e.html) which supports the so called "Route B" service, publishing electricity meter data in real-time over a 920Mhz radio (![Wi-SUN](https://wi-sun.org/about/)) Any consumer can apply for Route B login credential and, with the right hardware and software, connect to the smart meter at home to monitor energy usage. This forms part of the ![ECHONET Lite](https://echonet.jp/features_en/) standard which details the communication protocol between hundreds of different types of home appliances to enable home energy management systems.
+As of 2026, most if not all meters in Japan have been upgraded to [Smart Meter](https://www.tepco.co.jp/en/pg/development/domestic/smartmeter-e.html) which supports the so called "Route B" service, made available electricity meter data in real-time over a 920Mhz radio [Wi-SUN](https://wi-sun.org/about/). Any consumer can apply for the Route B login credential and, with the right hardware and software, connect to the smart meter at home to monitor energy usage. This forms part of the [ECHONET Lite](https://echonet.jp/features_en/) standard which details the communication protocol between hundreds of different types of home appliances to enable home energy management systems.
 
 ## Why another fork?
 
-A number of similar projects had existed for some time and I ended up chosing Miyaichi-san's design as the baseline to build on. Reasons being:
+While a number of similar projects had existed for some time, I ended up chosing Miyaichi-san's design as the baseline to build on. Reasons being:
 
 - Micropython being a scripting language allows for rapid iteration, perfect for someone learning about IoT dev
-- ![M5Stick](https://docs.m5stack.com/zh_CN/core/M5StickC%20PLUS2) is a slick ESP32 device with its own screen to show real-time data at a glance
-- Simple and lightweight code base with minimal library dependencies as a starting point, for example a popular project supports relaying data to a another child device for visualizations etc. which I won't need as I plan to integrate with Home Assistant
+- [M5StickC-PLUS2](https://docs.m5stack.com/zh_CN/core/M5StickC%20PLUS2) is a slick ESP32 device with its own color LCD screen to show real-time data at a glance
+- Simple and lightweight code base with minimal dependencies as a starting point, for example this very nice [project](https://github.com/yonmas/SMM3-SmartMeterMonitor_v3?tab=readme-ov-file) supports relaying data to another child device for visualization which I won't need as I plan to integrate with Home Assistant. I also prefer not to introduce internet dependency by using Google Sheet to store configuration details.
 
 ## Features planned
 
-- Support the newer device M5StickC-PLUS2 -- some GPIO changes from the original M5StickC
+- Support the newer device M5StickC-PLUS2 and Wi-SUN HAT rev0.2 (see Hardware below)
 - Migrate to the latest UIFlow 2.0 firmware (V2.4.3) based on Micropython v1.25.0 -- major API changes with the unified M5 library replacing the legacy M5Stack library
 - Run as an energy sensor to publish real-time usage data into Home Assistant over MQTT
-- Improve accuracy of Tepco charge calculator -- support ![検針日](https://www.tepco.co.jp/pg/consignment/liberalization/kyoukyusya/change/retail/calendar.html) meter reading calendar including utility scripts to scrap data off the TEPCO web site
+- Improve accuracy of Tepco charge calculator -- support [検針日](https://www.tepco.co.jp/pg/consignment/liberalization/kyoukyusya/change/retail/calendar.html) meter reading calendar including utility scripts to scrap data off the TEPCO web site
 
 ## Route B Service
 
-- Apply online for the ![Route B Service](https://www.tepco.co.jp/pg/consignment/liberalization/smartmeter-broute.html) -- this link is for TEPCO but there should be similar links for other providers
+- Apply online for the [Route B Service](https://www.tepco.co.jp/pg/consignment/liberalization/smartmeter-broute.html) -- this link is for TEPCO but there should be similar links for other providers
 - You will receive an email from route_b_information@tepco.co.jp containing a 12-character password -- note that the embedded spaces are just there for readability and are not part of the password!
 - Interestingly, you will only receive the 32-character user ID by post (same address as your billing address) -- why is this not the other way round is beyond me. Similarly note that the embedded spaces are just there for readability
 
 ## Hardware
 
-- ![M5StickC-PLUS2](https://www.switch-science.com/products/9350) - ESP32 controller with a nice color display and expandable I/O
-- Note that the new board ![M5StickS3](https://www.switch-science.com/products/10921) released in March 2026 is sadly pin-incompatible with Wi-SUN HAT (HAT2 is now 16-pin) It also lacks RTC, so may not be ideal for real-time energy tracking use cases
-- ![BP35A1](https://www.rohm.com/products/wireless-communication/specified-low-power-radio-modules/bp35a1-product#productDetail) -- Wi-SUN Compatible Wireless Module, EOL as of 2026 so only available while stock lasts
-- ![BP35C1-J11-T01]() -- alternative to BP35A1, evaluation board for the newer BP35C0-J11 module
-- ![Wi-SUN HAT rev0.2](https://booth.pm/ja/items/1650727) -- M5Stick HAT kit for the Wi-SUN module, make sure to buy the matching version for BP35A1 vs. BP35C1-J11-T01
+- [M5StickC-PLUS2](https://www.switch-science.com/products/9350) - ESP32 controller with a nice color display and expandable I/O
+- Note that the new board [M5StickS3](https://www.switch-science.com/products/10921) released in March 2026 is sadly pin-incompatible with Wi-SUN HAT (HAT2 is now 16-pin) It also lacks RTC, so may not be ideal for real-time energy tracking use cases
+- [BP35A1](https://www.rohm.com/products/wireless-communication/specified-low-power-radio-modules/bp35a1-product#productDetail) -- Wi-SUN Compatible Wireless Module, EOL as of 2026 so only available while stock lasts
+- [BP35C1-J11-T01]() -- alternative to BP35A1, evaluation board for the newer BP35C0-J11 module
+- [Wi-SUN HAT rev0.2](https://booth.pm/ja/items/1650727) -- M5Stick HAT kit for the Wi-SUN module, make sure to buy the matching version for BP35A1 vs. BP35C1-J11-T01
 
 ---
 TODO: update
