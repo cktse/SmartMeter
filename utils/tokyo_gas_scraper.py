@@ -114,13 +114,16 @@ def extract_tariff(html):
         if len(row) < 3:
             continue
         n = re.search(r"第(\d)段階料金", row[0])
-        if re.findall(r"超えた", row[0]):  # final tier
+        if not n:
+            continue
+        if re.findall(r"超えた", row[0]):  # final tier, can ignore lower limit
             nums = []
         else:
             nums = list(map(int, re.findall(r"(\d+)kWh", row[0])))
+            nums = nums[-1] if nums else None  # just need the upper limit
         price = normalize_price(''.join(row[-3:]))
         if n and price:
-            tiers.append((int(n.group(1)), nums, price))
+            tiers.append((nums, price))
 
     return basic, tiers
 
@@ -142,10 +145,7 @@ def normalize_all(ts_data, basic, tiers, plan, today):
     out[today]['base'] = basic
 
     # --- Energy tiers ---
-    for n, tier, price in tiers:
-        if len(tier) == 1:
-            tier = [0, tier[0]]
-        out[today]['tier'+str(n)] = (tier, price)
+    out[today]['tiers'] = tiers
 
     return out
 
