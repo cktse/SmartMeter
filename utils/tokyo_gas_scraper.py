@@ -117,7 +117,7 @@ def extract_tariff(html):
         if not n:
             continue
         if re.findall(r"超えた", row[0]):  # final tier, can ignore lower limit
-            nums = []
+            nums = None
         else:
             nums = list(map(int, re.findall(r"(\d+)kWh", row[0])))
             nums = nums[-1] if nums else None  # just need the upper limit
@@ -142,7 +142,7 @@ def normalize_all(ts_data, basic, tiers, plan, today):
     out['default']['last_updated'] = str(datetime.now().astimezone())
 
     # --- Basic charges ---
-    out[today]['base'] = basic
+    out[today]['basic'] = basic
 
     # --- Energy tiers ---
     out[today]['tiers'] = tiers
