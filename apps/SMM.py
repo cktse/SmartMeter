@@ -29,6 +29,10 @@ import charge
 from BP35A1 import BP35A1
 ##from mock_BP35A1 import BP35A1
 
+def localtime():
+    offset = 9 * 3600  # JST
+    return utime.localtime(utime.mktime(utime.localtime()) + offset)
+
 # ---------------------------------------------------------------------------
 # Global variables
 # ---------------------------------------------------------------------------
@@ -325,19 +329,19 @@ if __name__ == '__main__':
                     raise Exception(
                         '{} is not defined in SmartMeter.json'.format(key))
 
-        mday_calendar_file = 'calendar_' + str(utime.localtime()[0]) + '.json' # 検針日カレンダーフ>ァイル名
+        mday_calendar_file = '/flash/calendar_' + str(localtime()[0]) + '.json' # 検針日カレンダーフ>ァイル名
         try:
             with open(mday_calendar_file, 'r') as f:
                 config_cal = ujson.load(f)
-            logger.info('calendar file is founded !')
+            logger.info(f'calendar file {mday_calendar_file} is founded !')
             config.update(config_cal) # 基本設定と検針日カレンダーを結合
-        except FileNotFoundError:
-            logger.info('calendar file is NOT founded !')
+        except OSError:
+            logger.info(f'calendar file {mday_calendar_file} is NOT founded !')
 
         if not isinstance(config['collect_date'], list):
             config['collect_date'] = [int(config['collect_date'])]*13  # backward compatibility
         config['collect_date'][0] = config['collect_date'][12]
-        logger.info('collect_date: %s', collect_date)
+        logger.info('collect_date: %s', config['collect_date'])
 
         # -- Create objects ---------------------------------------------------
         status('Create objects')
