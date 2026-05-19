@@ -90,14 +90,18 @@ def days_after_collect(collect_date):
     return days1 - days2  # [今日 - 直近検針日] を返す
 
 
-def last_colect_day(collect_mday):
-    (year, month, mday) = localtime()[:3]
-    if month == 1:
-        return (year - 1, 12, 31 - collect_mday + mday)
-    if mday < collect_mday:
-        month -= 1
-    return strftime((year, month, collect_mday, 0, 0, 0))
-
+def last_collect_day(collect_date):
+    (year, month, today) = utime.localtime()[:3]  # 今日の日付 today を求める
+    if today < collect_date[month]:               # 今日が今月の検針日より前なら
+        day = collect_date[month - 1]               #     起点は前月の検針日
+        if month == 1:                            #     （検針日より前かつ）1月なら
+            year -= 1                             #         直近検針日は前年
+            month = 12                            #         直近検針日は12月
+        else:                                     #     （検針日より前）かつ1月以外なら
+            month -= 1                            #         直近検針日は前月
+    else:                                         # 今日が今月の検針日以後なら
+        day = collect_date[month]                 #     起点は当月の検針日
+    return strftime((year, month, day, 0, 0, 0))  # 直近の検針日を返す
 
 class BP35A1:
     def __init__(self,
@@ -119,7 +123,6 @@ class BP35A1:
         ##self.uart = machine.UART(1, tx=0, rx=36)
         self.uart = machine.UART(1, tx=0, rx=26)
         self.uart.init(115200, bits=8, parity=None, stop=1, timeout=2000)
-        self.uart = open('stdin')
 
         self.id = id
         self.password = password
@@ -388,7 +391,7 @@ class BP35A1:
         (created, power) = self.read_property('EA')
 
         # 前回検針日と積算電力量計測値(EA)との差分
-        return (last_colect_day(self.collect_date), power - collected_power)
+        return (last_collect_day(self.collect_date), power - collected_power)
 
     def close(self):
         """
