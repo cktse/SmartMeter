@@ -11,22 +11,22 @@ _db = CalcCharge()
 
 def tepco(contract, usage, month=None):
     global _db
-    _db.load_charge_db(['utils/nencho_saiene.json', 'utils/tepco_b.json'], month)
+    _db.load_charge_db(['nencho_saiene.json', 'tepco_b.json'], month)
     return _db.calc_charge(contract, usage)
             
 def tokyo_gas_1(contract, usage, month=None):
     global _db
-    _db.load_charge_db(['utils/nencho_saiene.json', 'utils/tokyo_gas_1.json'], month)
+    _db.load_charge_db(['nencho_saiene.json', 'tokyo_gas_1.json'], month)
     return _db.calc_charge(contract, usage)
 
 def tokyo_gas_1s(contract, usage, month=None):
     global _db
-    _db.load_charge_db(['utils/nencho_saiene.json', 'utils/tokyo_gas_1s.json'], month)
+    _db.load_charge_db(['nencho_saiene.json', 'tokyo_gas_1s.json'], month)
     return _db.calc_charge(contract, usage)
 
 def tokyo_gas_2(contract, usage, month=None):
     global _db
-    _db.load_charge_db(['utils/nencho_saiene.json', 'utils/tokyo_gas_2.json'], month)
+    _db.load_charge_db(['nencho_saiene.json', 'tokyo_gas_2.json'], month)
     return _db.calc_charge(contract, usage)
 
 if __name__ == '__main__':
@@ -34,5 +34,5 @@ if __name__ == '__main__':
     from datetime import date
     print(339, tokyo_gas_1('60', 339))
     print(339, tepco('60', 339))
-    print(633, tokyo_gas_1('60', 633, date(2026,3,1)))
-    rint(633, tepco('60', 633, date(2026,3,1)))
+    print(633, tokyo_gas_1('60', 633, (2026,3,1)))
+    print(633, tepco('60', 633, (2026,3,1)))
