@@ -7,12 +7,18 @@ try:
 except:
     import struct
 
-# (date(2000, 1, 1) - date(1900, 1, 1)).days * 24*60*60
-NTP_DELTA = 3155673600
+# Determine epoch automatically
+
+import utime
+if utime.gmtime(0)[0] == 2000:
+    # NTP epoch (1900) -> MicroPython epoch (2000)
+    NTP_DELTA = 3155673600
+else:
+    # NTP epoch (1900) -> Unix epoch (1970)
+    NTP_DELTA = 2208988800
 
 # The NTP host can be configured at runtime by doing: ntptime.host = 'myhost.org'
-host = "pool.ntp.org"
-
+host = "jp.pool.ntp.org"
 
 def time():
     NTP_QUERY = bytearray(48)
