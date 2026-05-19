@@ -2,7 +2,11 @@
 # Generic charge calculator driven by pricing parameters stored in a JSON database
 #
 import json
-from datetime import date
+import utime
+
+def localtime():
+    offset = 9 * 3600  # JST
+    return utime.localtime(utime.mktime(utime.localtime()) + offset)
 
 class CalcCharge:
     def __init__(self, json_files=None, month=None):
@@ -21,8 +25,8 @@ class CalcCharge:
         self.month = month
 
         if month is None:
-            month = date.today()
-        key = f'{month.year}-{month.month:02}'
+            month = localtime()
+        key = f'{month[0]:04}-{month[1]:02}'
 
         self.db = {}
         for json_file in json_files:
@@ -74,9 +78,9 @@ class CalcCharge:
 if __name__ == '__main__':
     # Examples
     for plan in ['tepco_b', 'tepco_standard_s', 'tokyo_gas_basic', 'tokyo_gas_1', 'tokyo_gas_1s', 'tokyo_gas_2']:
-        cc = CalcCharge(['utils/nencho_saiene.json', 'utils/'+plan+'.json'], date(2026,1,1))
+        cc = CalcCharge(['nencho_saiene.json', plan+'.json'], (2026,1,1))
         print(1269, plan, cc.calc_charge('60', 1269))
-        cc = CalcCharge(['utils/nencho_saiene.json', 'utils/'+plan+'.json'], date(2026,2,1))
+        cc = CalcCharge(['nencho_saiene.json', plan+'.json'], (2026,2,1))
         print(906, plan, cc.calc_charge('60', 906))
-        cc = CalcCharge(['utils/nencho_saiene.json', 'utils/'+plan+'.json'], date(2026,3,1))
+        cc = CalcCharge(['nencho_saiene.json', plan+'.json'], (2026,3,1))
         print(633, plan, cc.calc_charge('60', 633))
