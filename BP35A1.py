@@ -137,6 +137,8 @@ class BP35A1:
         self.ipv6_addr = None
         self.power_coefficient = None
         self.power_unit = None
+        self.manufacturer_code = None
+        self.production_number = None
 
         self.timeout = 60
 
@@ -348,10 +350,22 @@ class BP35A1:
                 # 係数(D3)の取得
                 self.progress(80)
                 self.power_coefficient = self.read_property('D3')
+                utime.sleep(1)
 
                 # 積算電力量単位(E1)の取得
                 self.progress(90)
                 self.power_unit = self.read_property('E1')
+                utime.sleep(1)
+
+                # メーカコード
+                self.progress(92)
+                self.manufacturer_code = self.read_property('8A')
+                utime.sleep(1)
+
+                # 製造番号
+                self.progress(94)
+                self.production_number = self.read_property('8D')
+                utime.sleep(1)
 
                 self.progress(100)
                 return (self.channel, self.pan_id, self.mac_addr, self.lqi)
@@ -488,6 +502,18 @@ class BP35A1:
                             16) * self.power_coefficient * self.power_unit
                 return created, power
 
+            # メーカコード
+            if esv == '72' and epc == '8A':
+                return data[-6:]
+
+            # 製造番号
+            if esv == '72' and epc == '8D':
+                return bytes.fromhex(data[-24:]).decode('ascii')
+
+            # TODO: Testing - return raw buffer
+            logger.warn(f'Unhandled response: ESV:{esv} EPC:{epc} EDT:{data}')   
+            return data
+
         raise Exception('BP35A1.wait_for_data() timeout.')
 
     def close(self):
@@ -495,9 +521,9 @@ class BP35A1:
 
 
 if __name__ == '__main__':
-    # TODO: unit test
-    id = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-    password = 'xxxxxxxxxxxx'
+    # For unit test only
+    id = "YOUR-BROUTE-USER-ID"
+    password = "YOUR-BROUTE-PASSWORD"
     contract_amperage = 60
     collect_date = 4
 
@@ -508,10 +534,19 @@ if __name__ == '__main__':
 
     bp35a1.open()
 
-    (datetime, data) = bp35a1.instantaneous_power()
-    print('Instantaneous power {} {}W'.format(datetime, data))
+    (datetime, data) = bp35a1.monthly_power()
+    print('Monthly power {} {}kWh'.format(datetime, data))
 
-    (datetime, data) = bp35a1.total_power()
-    print('Total power {} {}kWh'.format(datetime, data))
+    # Support EPC from property map: ['80', '81', '82', '88', '8A', '8D', '97', '98', '9D', '9E', '9F', 'D3', 'D7', 'E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E7', 'E8', 'EA', 'EB', 'EC', 'ED']
+    for epc in ['80', '81', '82', '88', '8A', '8D', '97', '98', '9D', '9E', '9F', 'D3', 'D7']:
+        raw = bp35a1.read_property(epc)
+        print(epc, ":", raw)
+        utime.sleep(5)
+
+    #(datetime, data) = bp35a1.instantaneous_power()
+    #print('Instantaneous power {} {}W'.format(datetime, data))
+
+    #(datetime, data) = bp35a1.total_power()
+    #print('Total power {} {}kWh'.format(datetime, data))
 
     bp35a1.close()
