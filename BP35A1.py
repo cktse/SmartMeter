@@ -476,6 +476,8 @@ class BP35A1:
             # 瞬時電力値
             if esv == '72' and epc == 'E7':
                 power = int(data[-8:], 16)
+                if power >= 0x80000000:
+                    power -= 0x100000000  # Handle signed long 2's complement
                 return strftime(localtime()), power
 
             # 瞬時電流計測値
@@ -486,6 +488,10 @@ class BP35A1:
                 t = int(data[-4:], 16)
                 if t == 0x7ffe:
                     t = 0
+                if r >= 0x8000:
+                    r -= 0x10000  # Handle signed short 2's complement 
+                if t >= 0x8000:
+                    t -= 0x10000
                 return strftime(localtime()), (r + t) / 10.0
 
             # 定時積算電力量
@@ -504,14 +510,14 @@ class BP35A1:
 
             # メーカコード
             if esv == '72' and epc == '8A':
-                return data[-6:]
+                return data[-6:].rstrip('\x00')
 
             # 製造番号
             if esv == '72' and epc == '8D':
-                return bytes.fromhex(data[-24:]).decode('ascii')
+                return bytes.fromhex(data[-24:]).decode('ascii').rstrip('\x00')
 
             # TODO: Testing - return raw buffer
-            logger.warn(f'Unhandled response: ESV:{esv} EPC:{epc} EDT:{data}')   
+            logger.warning(f'Unhandled response: ESV:{esv} EPC:{epc} EDT:{data}')   
             return data
 
         raise Exception('BP35A1.wait_for_data() timeout.')
@@ -538,7 +544,7 @@ if __name__ == '__main__':
     print('Monthly power {} {}kWh'.format(datetime, data))
 
     # Support EPC from property map: ['80', '81', '82', '88', '8A', '8D', '97', '98', '9D', '9E', '9F', 'D3', 'D7', 'E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E7', 'E8', 'EA', 'EB', 'EC', 'ED']
-    for epc in ['80', '81', '82', '88', '8A', '8D', '97', '98', '9D', '9E', '9F', 'D3', 'D7']:
+    for epc in ['E8','E7','EB']:
         raw = bp35a1.read_property(epc)
         print(epc, ":", raw)
         utime.sleep(5)
