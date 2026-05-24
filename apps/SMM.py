@@ -43,6 +43,8 @@ rotation     = 1               # 1=LANDSCAPE  3=LANDSCAPE_FLIP  (M5GFX)
 logger       = None            # Logger object
 logger_name  = 'SMM'           # Logger name
 ambient_client = None          # Ambient instance
+mqtt_client  = None            # MQTT client instance
+_mqtt_connected = False
 max_retries  = 30              # Maximum consecutive failures before reset
 _wifi_sta    = None            # WLAN STA interface
 
@@ -115,22 +117,44 @@ def _wifi_init():
     _wifi_sta.active(True)
 
 def _wifi_is_connected():
-    return _wifi_sta is not None and _wifi_sta.isconnected()
+    return _wifi_sta and _wifi_sta.isconnected()
 
-def checkWiFi(_=None):
+def checkWiFi():
     """Periodic watchdog – called by machine.Timer every 60 s."""
     if not _wifi_is_connected():
-        if logger:
-            logger.warn('Wi-Fi lost – attempting reconnect')
+        logger.warning('Wi-Fi lost – attempting reconnect')
         # Toggling active() triggers the NVS-credential auto-connect path
         _wifi_sta.active(False)
         utime.sleep_ms(500)
         _wifi_sta.active(True)
-        for _ in range(20):          # wait up to 10 s
-            if _wifi_sta.isconnected():
-                return
-            utime.sleep_ms(500)
-        machine.reset()              # give up and reboot
+        utime.sleep_ms(500)
+        if _wifi_sta.isconnected():
+            logger.info('Wi-Fi reconnected OK')
+        else:
+            logger.warning('Wi-Fi is still lost - will try again')
+       
+        # TODO: want to allow sensor to continue to function even when wifi is down 
+        #for _ in range(20):          # wait up to 10 s
+        #    if _wifi_sta.isconnected():
+        #        return
+        #    utime.sleep_ms(500)
+        #machine.reset()              # give up and reboot
+
+def publish_MQTT(values):
+    global _mqtt_connected
+    try:
+        checkWiFi()  # MQTT depends on WiFi, obviously...
+
+        if not _mqtt_connected:
+            mqtt_client.mqtt.connect()
+            mqtt_client.publish_discovery()
+            _mqtt_connected = True
+
+        mqtt_client.publish_many(values)
+
+    except OSError as e:
+        logger.warning('MQTT connection failed, will try to re-connect: %s', e)
+        _mqtt_connected = False
 
 # ---------------------------------------------------------------------------
 # Status / progress display
@@ -322,12 +346,17 @@ if __name__ == '__main__':
         for key in ('id', 'password', 'contract_amperage',
                     'collect_date', 'charge_func'):
             if key not in config:
-                raise Exception('{} is not defined in SmartMeter.json'.format(key))
+                raise Exception(f'{key} is not defined in SmartMeter.json')
+
         if 'ambient' in config:
             for key in ('channel_id', 'write_key'):
                 if key not in config['ambient']:
-                    raise Exception(
-                        '{} is not defined in SmartMeter.json'.format(key))
+                    raise Exception(f'ambient.{key} is not defined in SmartMeter.json')
+
+        if 'mqtt' in config:
+            for key in ('server', 'port', 'user', 'password'):
+                if key not in config['mqtt']:
+                    raise Exception(f'mqtt.{key} is not defined in SmartMeter.json')
 
         mday_calendar_file = '/flash/calendar_' + str(localtime()[0]) + '.json' # 検針日カレンダーフ>ァイル名
         try:
@@ -377,6 +406,35 @@ if __name__ == '__main__':
         logger.info('Connected. BP35A1 info: (%s, %s, %s, %s)',
                     channel, pan_id, mac_addr, lqi)
 
+        # -- Optionally setup MQTT ---------------------------------------
+        if 'mqtt' in config:
+            from mqtt import BRouteMQTTClient
+            from umqtt.simple import MQTTClient
+            from machine import unique_id
+            from ubinascii import hexlify
+
+            client_id = "bp35a1_" + hexlify(unique_id()).decode()
+            mqtt = MQTTClient(
+                client_id=client_id,
+                server=config['mqtt']['server'],
+                port=config['mqtt']['port'],
+                user=config['mqtt']['user'],
+                password=config['mqtt']['password']
+            )
+            mqtt_client = BRouteMQTTClient(
+                mqtt=mqtt,
+                manufacturer_code=bp35a1.manufacturer_code,
+                production_number=bp35a1.production_number,
+                discovery_prefix=config['mqtt'].get('discovery_prefix')  # optional
+            )
+            logger.info('MQTT config: (%s, %s, %s, %s)',
+                        mqtt.client_id,
+                        mqtt.server,
+                        mqtt.port,
+                        mqtt.user)
+
+                
+
         # -- Monitoring loop --------------------------------------------------
         status('Start monitoring')
         amperage  = power_kw = power_kwh = amount = 0
@@ -400,6 +458,11 @@ if __name__ == '__main__':
                     logger.exception(e)
                     retries += 1
 
+                publish_MQTT({
+                    "power":power_kw,
+                    "current":amperage
+                })
+
             # Every 60 s – monthly totals
             if t % 60 == 0:
                 try:
@@ -412,6 +475,11 @@ if __name__ == '__main__':
                 except Exception as e:
                     logger.exception(e)
                     retries += 1
+
+                publish_MQTT({
+                    "monthly_energy":power_kwh,
+                    "monthly_charge":amount
+                })
 
             # Every 30 s – send to Ambient
             if t % 30 == 0:
