@@ -1,11 +1,13 @@
 {
   "id": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   "password": "XXXXXXXXXXXX",
-  "contract_amperage": "",
-  "collect_date": "",
-  "charge_func": "",
-  "ambient": {
-    "channel_id": "XXXXX",
-    "write_key": "XXXXXXXXXXXXXXXX"
+  "contract_amperage": "60",
+  "collect_date": "4",
+  "charge_func": "tepco",
+  "mqtt": {
+    "server":"homeassistant.local",
+    "port":"1883",
+    "user":"XXXXXX",
+    "password":"XXXXXXXXXXXXXXXXXXXX"
   }
 }
