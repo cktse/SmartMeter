@@ -1,4 +1,5 @@
 import ujson
+import utime
 
 #
 # ECHONET Appendix Revision F
@@ -14,8 +15,15 @@ class BRouteMQTTClient:
             "state_class": "measurement"
         },
         {
-            "id": "current",
-            "name": "Instantaneous Current",
+            "id": "current_r",
+            "name": "Instantaneous Current (R phase)",
+            "unit": "A",
+            "device_class": "current",
+            "state_class": "measurement"
+        },
+        {
+            "id": "current_t",
+            "name": "Instantaneous Current (T phase)",
             "unit": "A",
             "device_class": "current",
             "state_class": "measurement"
@@ -104,6 +112,16 @@ class BRouteMQTTClient:
 
     def publish_discovery(self):
 
+        # Clear any stale retained configs (publish empty payload)
+        for sensor in self.sensors:
+            self.mqtt.publish(
+                self._config_topic(sensor["id"]),
+                b"",
+                retain=True
+            )
+        utime.sleep(1)
+
+        # Publish fresh discovery for all entities
         for sensor in self.sensors:
 
             payload = {
@@ -116,7 +134,7 @@ class BRouteMQTTClient:
                 "device_class": sensor["device_class"]
             }
 
-            print('publish_discovery:', ujson.dumps(payload))
+            print('publish_discovery:', ujson.dumps(payload))  # TODO: use logging
             self.mqtt.publish(
                 self._config_topic(sensor["id"]),
                 ujson.dumps(payload),
@@ -124,6 +142,7 @@ class BRouteMQTTClient:
             )
 
             print("Discovery:", sensor["name"])
+            utime.sleep(0.2)
 
     def publish(self, sensor_id, value):
 
@@ -182,7 +201,8 @@ if __name__ == "__main__":
 
     ha.publish_many({
         "power":1450,
-        "current":6.3,
+        "current_r":6,
+        "current_t":3,
         "monthly_energy":284,
         "monthly_charge":8610
 

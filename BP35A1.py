@@ -91,7 +91,7 @@ def days_after_collect(collect_date):
 
 
 def last_collect_day(collect_date):
-    (year, month, today) = utime.localtime()[:3]  # 今日の日付 today を求める
+    (year, month, today) = localtime()[:3]  # 今日の日付 today を求める
     if today < collect_date[month]:               # 今日が今月の検針日より前なら
         day = collect_date[month - 1]               #     起点は前月の検針日
         if month == 1:                            #     （検針日より前かつ）1月なら
@@ -401,11 +401,12 @@ class BP35A1:
         # 積算電力量計測値履歴１(E2)の取得
         (days, collected_power) = self.read_property('E2')
 
-        # 瞬時電力計測値(E7)の取得
+        # 積算電力量計測値 (正方向計測値) (EA)の取得
         (created, power) = self.read_property('EA')
 
         # 前回検針日と積算電力量計測値(EA)との差分
-        return (last_collect_day(self.collect_date), power - collected_power)
+        # TODO: figure out how to factor into 'EB' (like EA but in reverse direction)
+        return (last_collect_day(self.collect_date), power - collected_power, power)
 
     def close(self):
         """
@@ -485,14 +486,14 @@ class BP35A1:
                 r = int(data[-8:-8 + 4], 16)
                 if r == 0x7ffe:
                     r = 0
+                if r >= 0x8000:
+                    r -= 0x10000  # Handle signed short 2's complement 
                 t = int(data[-4:], 16)
                 if t == 0x7ffe:
                     t = 0
-                if r >= 0x8000:
-                    r -= 0x10000  # Handle signed short 2's complement 
                 if t >= 0x8000:
                     t -= 0x10000
-                return strftime(localtime()), (r + t) / 10.0
+                return strftime(localtime()), r/10.0, t/10.0
 
             # 定時積算電力量
             if esv == '72' and epc == 'EA':
@@ -540,7 +541,7 @@ if __name__ == '__main__':
 
     bp35a1.open()
 
-    (datetime, data) = bp35a1.monthly_power()
+    (datetime, data, _) = bp35a1.monthly_power()
     print('Monthly power {} {}kWh'.format(datetime, data))
 
     # Support EPC from property map: ['80', '81', '82', '88', '8A', '8D', '97', '98', '9D', '9E', '9F', 'D3', 'D7', 'E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E7', 'E8', 'EA', 'EB', 'EC', 'ED']

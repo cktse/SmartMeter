@@ -147,6 +147,7 @@ def publish_MQTT(values):
 
         if not _mqtt_connected:
             mqtt_client.mqtt.connect()
+            utime.sleep(1)
             mqtt_client.publish_discovery()
             _mqtt_connected = True
 
@@ -437,7 +438,7 @@ if __name__ == '__main__':
 
         # -- Monitoring loop --------------------------------------------------
         status('Start monitoring')
-        amperage  = power_kw = power_kwh = amount = 0
+        amperage  = power_kw = power_kwh = cumulative_kwh = amount = 0
         update    = collect = 'YYYY-MM-DD hh:mm:ss'
         retries   = 0
         t         = 0
@@ -449,9 +450,10 @@ if __name__ == '__main__':
             # Every 10 s – instantaneous readings
             if t % 10 == 0:
                 try:
-                    (_, amperage)      = bp35a1.instantaneous_amperage()
+                    (_, amperage_r, amperage_t) = bp35a1.instantaneous_amperage()
                     (update, power_kw) = bp35a1.instantaneous_power()
-                    instantaneous_amperage(amperage)
+                    amperage = amperage_r + amperage_t
+                    instantaneous_amperage(amperage)  # TODO: r+t logic is technically incorrect
                     instantaneous_power(power_kw)
                     retries = 0
                 except Exception as e:
@@ -460,13 +462,14 @@ if __name__ == '__main__':
 
                 publish_MQTT({
                     "power":power_kw,
-                    "current":amperage
+                    "current_r":amperage_r,
+                    "current_t":amperage_t
                 })
 
             # Every 60 s – monthly totals
             if t % 60 == 0:
                 try:
-                    (collect, power_kwh) = bp35a1.monthly_power()
+                    (collect, power_kwh, cumulative_kwh) = bp35a1.monthly_power()
                     amount = charge_func(config['contract_amperage'], power_kwh)
                     collect_range(collect, update)
                     monthly_power(power_kwh)
@@ -478,7 +481,8 @@ if __name__ == '__main__':
 
                 publish_MQTT({
                     "monthly_energy":power_kwh,
-                    "monthly_charge":amount
+                    "monthly_charge":amount,
+                    "cumulative_energy":cumulative_kwh
                 })
 
             # Every 30 s – send to Ambient
