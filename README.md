@@ -229,7 +229,8 @@ What ends up where:
 Logs are emitted at DEBUG level. Connect to the M5StickC serial console to watch what the device is doing:
 
 ```bash
-screen /dev/tty.usbserial-00001214 115200
+make connect
+make run
 ```
 
 Useful things to look for on the console:
@@ -243,6 +244,7 @@ On the broker side, `mosquitto_sub -h <broker> -u <user> -P <pass> -t 'echonet/#
 
 ## Open questions / features planned
 
+- **JSON config refresh/date rollover** -- need an automated way for the device to pick up refreshed JSON files periodically
 - **Reverse direction (逆方向, EB) cumulative energy** -- the `Cumulative Energy (Reverse)` entity is declared in `mqtt.py` but never published. `BP35A1.monthly_power()` only reads EA; EB needs to be read and, more interestingly, factored into the monthly total for a household with solar. No solar here to test against
 - **R + T phase handling** -- the LCD shows `amperage_r + amperage_t`, which is not what single-phase three-wire (単相3線式) actually means. The MQTT side already publishes the two phases separately; the display (and Ambient data 1) still needs a better answer than a sum
 - **Surviving a Wi-Fi outage** -- `checkWiFi()` bounces the interface and gives up gracefully, and the periodic watchdog timer is currently commented out because a reboot mid-session costs a slow Route B re-join. Meter polling and the LCD should keep working indefinitely without a network; this has not been properly soak tested
@@ -250,7 +252,6 @@ On the broker side, `mosquitto_sub -h <broker> -u <user> -P <pass> -t 'echonet/#
 - **Logging in `mqtt.py`** -- still uses bare `print()` rather than the logger, so MQTT chatter cannot be filtered by log level
 - **Hourly usage** -- `CalcCharge.calc_charge()` takes a single total. Time-of-use plans (and any real off-peak / night rate modelling) need a list of hourly usage, which the meter can provide as cumulative energy history (積算電力量計測値履歴) but the code does not read yet
 - **BP35C1-J11 support** -- the driver is written against BP35A1's SK command set. The newer module is close but not identical, and is untested here
-- **JSON config refresh/date rollover** -- need an automated way for the device to pick up refreshed JSON files periodically
 
 ## Credit
 
