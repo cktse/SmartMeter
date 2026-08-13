@@ -3,7 +3,6 @@ ID = $(shell basename $$(pwd))
 FILES = BP35A1.py \
         charge.py \
         chargedb.py	\
-        main.py	\
     	mqtt.py \
         ntptime.py \
         logging.py
@@ -30,6 +29,10 @@ push:
 	mpremote cp $(CFGS) :
 	mpremote cp $(FILES) :
 	mpremote cp $(APPS) :apps
+
+# run against local apps/SMM.py
+run:
+	mpremote run apps/SMM.py
 
 connect:
 	@echo "Use ^C to break from bootup to get into Python prompt, then ^] to exit mpremote"
