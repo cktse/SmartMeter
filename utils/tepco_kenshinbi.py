@@ -12,6 +12,7 @@ Returned array index mapping:
   index 12 → 3月 (March)
 """
 
+import os
 import re
 import urllib.request
 import json
@@ -177,11 +178,22 @@ def get_available_codes():
 if __name__ == "__main__":
     import sys
 
+    if len(sys.argv) == 1:
+        print('Usage:', sys.argv[0], '[collect_base]...')
+
     codes = sys.argv[1:] if len(sys.argv) > 1 else get_available_codes()
 
     for code in codes:
         try:
             result = get_kenshinbi(code)
-            print(json.dumps({'collect_year': get_year(), 'collect_base': int(code), 'collect_date': result}))
+            cal = {'collect_year': get_year(), 'collect_base': int(code), 'collect_date': result}
+            print(json.dumps(cal))
+
+            # Write calendar file only if there is exactly 1 code provided (o/w assumed to be testing)
+            if len(sys.argv) == 2:
+                calfile = f'calendar_{get_year()}.json'
+                with open(calfile, 'w') as f:
+                    print('INFO: writing json to:', calfile)
+                    json.dump(cal, f, ensure_ascii=False)
         except KeyError as e:
             print(e)
