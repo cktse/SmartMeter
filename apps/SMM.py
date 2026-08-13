@@ -426,7 +426,7 @@ if __name__ == '__main__':
                 mqtt=mqtt,
                 manufacturer_code=bp35a1.manufacturer_code,
                 production_number=bp35a1.production_number,
-                discovery_prefix=config['mqtt'].get('discovery_prefix')  # optional
+                discovery_prefix=config['mqtt'].get('discovery_prefix', 'homeassistant')
             )
             logger.info('MQTT config: (%s, %s, %s, %s)',
                         mqtt.client_id,
@@ -455,16 +455,17 @@ if __name__ == '__main__':
                     amperage = amperage_r + amperage_t
                     instantaneous_amperage(amperage)  # TODO: r+t logic is technically incorrect
                     instantaneous_power(power_kw)
+
+                    if mqtt_client:
+                        publish_MQTT({
+                            "power":power_kw,
+                            "current_r":amperage_r,
+                            "current_t":amperage_t
+                        })
                     retries = 0
                 except Exception as e:
                     logger.exception(e)
                     retries += 1
-
-                publish_MQTT({
-                    "power":power_kw,
-                    "current_r":amperage_r,
-                    "current_t":amperage_t
-                })
 
             # Every 60 s – monthly totals
             if t % 60 == 0:
@@ -474,16 +475,17 @@ if __name__ == '__main__':
                     collect_range(collect, update)
                     monthly_power(power_kwh)
                     monthly_fee(amount)
+
+                    if mqtt_client:
+                        publish_MQTT({
+                            "monthly_energy":power_kwh,
+                            "monthly_charge":amount,
+                            "cumulative_energy":cumulative_kwh
+                        })
                     retries = 0
                 except Exception as e:
                     logger.exception(e)
                     retries += 1
-
-                publish_MQTT({
-                    "monthly_energy":power_kwh,
-                    "monthly_charge":amount,
-                    "cumulative_energy":cumulative_kwh
-                })
 
             # Every 30 s – send to Ambient
             if t % 30 == 0:
