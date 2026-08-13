@@ -150,7 +150,7 @@ The TEPCO meter reading day is not a fixed day of the month -- it varies by mont
 {"collect_year": 2026, "collect_base": 2, "collect_date": [2, 5, 3, 4, 6, 7, 4, 6, 4, 3, 5, 4, 3]}
 ```
 
-`collect_date` is indexed by calendar month -- index 1 = January through index 12 = December -- so `collect_date[month]` is a direct lookup. The source table on the TEPCO web site is laid out in fiscal year order (April first), but `tepco_kenshinbi.py` normalizes it on the way out, so nothing downstream has to care. Index 0 holds the metering day (計量日) as scraped and is overwritten at startup with December's value, which is what makes the "previous month" lookup wrap correctly in January.
+`collect_date` is indexed by calendar month -- index 1 = January through index 12 = December -- so `collect_date[month]` is a direct lookup (normalized from the fiscal year layout on the TEPCO web site). Index 0 holds the metering day (計量日) as scraped and is overwritten at startup with December's value, which is what makes the "previous month" lookup wrap correctly in January.
 
 If no calendar file for the current year is found on the device, the scalar `collect_date` from `SmartMeter.json` is expanded to all 13 entries, which is the old fixed-day behaviour.
 
