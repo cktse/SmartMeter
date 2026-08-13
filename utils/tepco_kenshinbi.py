@@ -4,12 +4,13 @@ TEPCO 検針日カレンダー データ抽出スクリプト
 Fetches the 検針日 calendar from the TEPCO website and provides a function
 to look up dates by 基準検針日 (district code).
 
-Returned array index mapping:
-  index 0  → 計量日 (metering day)
-  index 1  → 4月 (April)
-  index 2  → 5月 (May)
-  ...
-  index 12 → 3月 (March)
+Usage: tepco_kenshinbi.py [collect_base]...
+
+Returns calendar_<year>.json for the given district code, e.g.
+{"collect_year": 2026, "collect_base": 2, "collect_date": [2, 5, 3, 4, 6, 7, 4, 6, 4, 3, 5, 4, 3]}%
+collect_date index has been normalized to match calendar month (not fiscal)
+e.g. collect_date[1]=5 corresponds to Jan 5, 2026
+e.g. collect_date[2]=3 corresponds to Feb 5, 2026
 """
 
 import os
