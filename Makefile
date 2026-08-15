@@ -9,12 +9,18 @@ FILES = BP35A1.py \
 
 APPS =  apps/SMM.py
 
+MAIN =  main.py
+
 CFGS =  calendar_2026.json \
         nencho_saiene.json\
         SmartMeter.json \
         tepco_b.json
 
-all: $(CFGS)
+all: $(CFGS) $(MAIN)
+
+# main.py is the script which runs automatically after reboot
+$(MAIN): $(APPS)
+	cp $< $@
 
 # refresh json config in utils
 refresh:
@@ -29,6 +35,7 @@ push:
 	mpremote cp $(CFGS) :
 	mpremote cp $(FILES) :
 	mpremote cp $(APPS) :apps
+	mpremote cp $(MAIN) :
 
 # run against local apps/SMM.py
 run:
