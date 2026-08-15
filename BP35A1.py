@@ -64,11 +64,6 @@ def days_of_year(y, m, d):
     return sum(t[:m - 1]) + d
 
 
-def localtime():
-    offset = 9 * 3600  # JST
-    return utime.localtime(utime.mktime(utime.localtime()) + offset)
-
-
 def strftime(tm, *, fmt='{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}'):
     (year, month, mday, hour, minute, second) = tm[:6]
     return fmt.format(year, month, mday, hour, minute, second)
@@ -76,7 +71,7 @@ def strftime(tm, *, fmt='{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}'):
 
 # 直近の検針日 collect_date からの経過日数を求める
 def days_after_collect(collect_date):
-    (year, month, today) = localtime()[:3]
+    (year, month, today) = utime.localtime()[:3]
     days1 = days_of_year(year, month, today)  # days1 1月1日からの経過日数
     if today < collect_date[month] :    # 今日が今月の検針日より前なら
         mday = collect_date[month - 1]      # 起点は前月の検針日
@@ -91,7 +86,7 @@ def days_after_collect(collect_date):
 
 
 def last_collect_day(collect_date):
-    (year, month, today) = localtime()[:3]  # 今日の日付 today を求める
+    (year, month, today) = utime.localtime()[:3]  # 今日の日付 today を求める
     if today < collect_date[month]:               # 今日が今月の検針日より前なら
         day = collect_date[month - 1]               #     起点は前月の検針日
         if month == 1:                            #     （検針日より前かつ）1月なら
@@ -141,6 +136,20 @@ class BP35A1:
         self.production_number = None
 
         self.timeout = 60
+        self.tid = 0  # ECHONET Lite TID, incremented per request
+
+    def next_tid(self):
+        self.tid = (self.tid + 1) & 0xFFFF
+        return self.tid
+
+    def drain(self):
+        """
+        Discard whatever is left in the UART buffer from an earlier exchange,
+        so a stale frame cannot be mistaken for the response we are about to
+        wait for.
+        """
+        while self.uart.any():
+            logger.debug('drain: %s', self.uart.readline())
 
     def flush(self):
         utime.sleep(0.5)
@@ -275,9 +284,11 @@ class BP35A1:
         """
         プロパティ値読み出し
         """
+        tid = self.next_tid()
+        self.drain()
         self.skSendTo((
             b'\x10\x81'  # EHD
-            b'\x00\x01'  # TID
+        ) + bytes([tid >> 8, tid & 0xFF]) + (  # TID
             b'\x05\xFF\x01'  # SEOJ
             b'\x02\x88\x01'  # DEOJ 低圧スマート電力量メータークラス
             b'\x62'  # ESV プロパティ値読み出し(62)
@@ -285,16 +296,18 @@ class BP35A1:
         ) + bytes([int(epc, 16)]) + (
             b'\x00'  # PDC Read
         ))
-        return self.wait_for_data()
+        return self.wait_for_data(epc, '72', '%04X' % tid)
 
     @propfunc
     def write_property(self, epc, value):
         """
         プロパティ値書き込み
         """
+        tid = self.next_tid()
+        self.drain()
         self.skSendTo((
             b'\x10\x81'  # EHD
-            b'\x00\x01'  # TID
+        ) + bytes([tid >> 8, tid & 0xFF]) + (  # TID
             b'\x05\xFF\x01'  # SEOJ
             b'\x02\x88\x01'  # DEOJ 低圧スマート電力量メータークラス
             b'\x61'  # ESV プロパティ値書き込み(61)
@@ -302,7 +315,7 @@ class BP35A1:
         ) + bytes([int(epc, 16)]) + (
             b'\x01'  # PDC Write
         ) + bytes([value]))
-        return self.wait_for_data()
+        return self.wait_for_data(epc, '71', '%04X' % tid)
 
     def open(self):
         """
@@ -396,6 +409,8 @@ class BP35A1:
         前回検針日を起点とした積算電力量計測値履歴１(E2)の取得
         """
         # 積算履歴収集日１(E5)の設定
+        # TODO: around midnight rollover, possible that we are ahead or behind that of the meter by 1 day
+        # TODO: should cache by the exact date to avoid hitting meter repeated; disable 30mins around midnight
         self.write_property('E5', days_after_collect(self.collect_date))
 
         # 積算電力量計測値履歴１(E2)の取得
@@ -422,7 +437,7 @@ class BP35A1:
             elif ln.startswith('FAIL'):
                 return False
 
-    def wait_for_data(self):
+    def wait_for_data(self, epc_want=None, esv_want=None, tid_want=None):
         start = utime.time()
         while utime.time() - start < self.timeout:
             ln = self.readln()
@@ -434,6 +449,7 @@ class BP35A1:
                 continue
 
             data = values[8]
+            tid = data[4:4 + 4]
             seoj = data[8:8 + 6]
             esv = data[20:20 + 2]
             epc = data[24:24 + 2]
@@ -441,6 +457,30 @@ class BP35A1:
             # 低圧スマート電力量メータ(028801)
             if seoj != '028801':
                 continue
+
+            # Correlate the frame against the request that is being waited on.
+            # Duplicated, late or unsolicited frames are otherwise handed to
+            # whoever happens to be waiting -- e.g. a stale E8 response being
+            # returned to a caller that asked for E7, which then leaves the
+            # real E7 response queued up to confuse the next read as well.
+            if epc_want and epc != epc_want:
+                logger.warning('Discarding EPC:%s (want EPC:%s) TID:%s ESV:%s',
+                               epc, epc_want, tid, esv)
+                continue
+
+            # The meter is required to echo our TID back; warn rather than
+            # discard, in case a given meter does not honour that
+            if tid_want and tid != tid_want:
+                logger.warning('TID:%s (want TID:%s) for ESV:%s EPC:%s',
+                               tid, tid_want, esv, epc)
+
+            if esv_want and esv != esv_want:
+                # 状態変化通知(INF:73 / INFC:74) ignore push notifications for now
+                if esv in ('73', '74'):
+                    logger.debug('Discarding notification: ESV:%s EPC:%s', esv, epc)
+                    continue
+                # エラー応答 (Get_SNA:52 / SetC_SNA:51)
+                raise Exception('Meter returned ESV:{} for EPC:{}'.format(esv, epc))
 
             # 積算電力量係数
             if esv == '72' and epc == 'D3':
@@ -479,7 +519,7 @@ class BP35A1:
                 power = int(data[-8:], 16)
                 if power >= 0x80000000:
                     power -= 0x100000000  # Handle signed long 2's complement
-                return strftime(localtime()), power
+                return strftime(utime.localtime()), power
 
             # 瞬時電流計測値
             if esv == '72' and epc == 'E8':
@@ -493,7 +533,7 @@ class BP35A1:
                     t = 0
                 if t >= 0x8000:
                     t -= 0x10000
-                return strftime(localtime()), r/10.0, t/10.0
+                return strftime(utime.localtime()), r/10.0, t/10.0
 
             # 定時積算電力量
             if esv == '72' and epc == 'EA':
@@ -518,7 +558,7 @@ class BP35A1:
                 return bytes.fromhex(data[-24:]).decode('ascii').rstrip('\x00')
 
             # TODO: Testing - return raw buffer
-            logger.warning(f'Unhandled response: ESV:{esv} EPC:{epc} EDT:{data}')   
+            logger.warning('Unhandled response: ESV:{%s} EPC:{%s} EDT:{%s}', esv, epc, data)   
             return data
 
         raise Exception('BP35A1.wait_for_data() timeout.')

@@ -1,4 +1,6 @@
 {
+  "wifi_ssid": "XXXXXXXXXXXX",
+  "wifi_password": "XXXXXXXXXXXX",
   "id": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   "password": "XXXXXXXXXXXX",
   "contract_amperage": "60",

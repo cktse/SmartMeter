@@ -15,7 +15,7 @@ While a number of similar projects had existed for some time, I ended up chosing
 ## New Features Added
 
 - Support the newer device M5StickC-PLUS2 and Wi-SUN HAT rev0.2 (see Hardware below)
-- Migrate to the latest UIFlow 2.0 firmware (V2.4.3) based on Micropython v1.25.0 -- major API changes with the unified M5 library replacing the legacy M5Stack library
+- Migrate to the latest UIFlow 2.0 firmware (V2.5) based on Micropython v1.27.0 -- major API changes with the unified M5 library replacing the legacy M5Stack library
 - Run as an energy sensor to publish real-time usage data into Home Assistant over MQTT
 - Improve accuracy of Tepco charge calculator -- support the [meter reading day (検針日)](https://www.tepco.co.jp/pg/consignment/liberalization/kyoukyusya/change/retail/calendar.html) calendar including utility scripts to scrap data off the TEPCO web site
 
@@ -38,7 +38,10 @@ While a number of similar projects had existed for some time, I ended up chosing
 
 ### Firmware
 
-Flash the M5StickC-PLUS2 with UIFlow 2.0 firmware (V2.4.3 or later) using [M5Burner](https://docs.m5stack.com/en/uiflow/m5burner/intro), and configure your Wi-Fi SSID / password during burning -- the credentials are stored in NVS and the firmware auto-connects on boot, so there is nothing Wi-Fi related to put into the config file. `SMM.py` simply activates the STA interface and waits (up to 30s) for the firmware to do its thing.
+Flash the M5StickC-PLUS2 with UIFlow 2.0 firmware (V2.5.0 or later) using [M5Burner5](https://docs.m5stack.com/en/uiflow/m5burner/intro) Make sure the Boot Option `Run main.py directly` is selected instead of the default `Show startup menu and network setup`, which would break `mpremote`. Also make sure Timezone is `GMT+9`.
+
+### Local Timezone Support
+Note that firmware comes with local timezone support (GMT+9 for Japan) which must be configured at the time of burning. There was a firmware bug (found on V2.4.3) which caused the timezone to flip-flop between GMT+9 and GMT-9 on every reboot which was resolved by upgrading to V2.5.0. This repository now assumes that utime.localtime() is reliable and hence removed the need for manual +9 hours offset in the code. If this becomes problematic for your specific device/firmware, consider hacking the +9 hours offset in `ntptime.py` when setting RTC.
 
 ### Clone this repository
 

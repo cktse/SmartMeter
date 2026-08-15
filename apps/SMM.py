@@ -29,10 +29,6 @@ import charge
 from BP35A1 import BP35A1
 ##from mock_BP35A1 import BP35A1
 
-def localtime():
-    offset = 9 * 3600  # JST
-    return utime.localtime(utime.mktime(utime.localtime()) + offset)
-
 # ---------------------------------------------------------------------------
 # Global variables
 # ---------------------------------------------------------------------------
@@ -111,34 +107,27 @@ def _btnA_pressed(_):
 # ---------------------------------------------------------------------------
 def _wifi_init():
     """Activate the STA interface; UIFlow 2 firmware reconnects automatically
-    using credentials stored in NVS (configured once via M5Burner)."""
+    using credentials stored in config (removed firmware dependency)"""
     global _wifi_sta
     _wifi_sta = network.WLAN(network.STA_IF)
     _wifi_sta.active(True)
+    _wifi_sta.connect(config['wifi_ssid'], config['wifi_password'])
 
 def _wifi_is_connected():
     return _wifi_sta and _wifi_sta.isconnected()
 
 def checkWiFi():
-    """Periodic watchdog – called by machine.Timer every 60 s."""
+    """Non-blocking by design to allow sensor to continue to function even when wifi is down"""
     if not _wifi_is_connected():
         logger.warning('Wi-Fi lost – attempting reconnect')
-        # Toggling active() triggers the NVS-credential auto-connect path
-        _wifi_sta.active(False)
+        _wifi_init()
         utime.sleep_ms(500)
-        _wifi_sta.active(True)
-        utime.sleep_ms(500)
-        if _wifi_sta.isconnected():
+        if _wifi_is_connected():
             logger.info('Wi-Fi reconnected OK')
         else:
             logger.warning('Wi-Fi is still lost - will try again')
-       
-        # TODO: want to allow sensor to continue to function even when wifi is down 
-        #for _ in range(20):          # wait up to 10 s
-        #    if _wifi_sta.isconnected():
-        #        return
-        #    utime.sleep_ms(500)
-        #machine.reset()              # give up and reboot
+            return False
+    return True
 
 def publish_MQTT(values):
     global _mqtt_connected
@@ -317,34 +306,13 @@ if __name__ == '__main__':
         #   BtnA.setCallback(type=BtnA.CB_TYPE.WAS_PRESSED, cb=function)
         BtnA.setCallback(type=BtnA.CB_TYPE.WAS_PRESSED, cb=_btnA_pressed)
 
-        # -- Wi-Fi ------------------------------------------------------------
-        status('Connecting Wi-Fi')
-        _wifi_init()
-        # Firmware auto-connects from NVS credentials; poll up to 30 s
-        for _t in range(30):
-            if _wifi_is_connected():
-              break
-            utime.sleep(1)
-        if not _wifi_is_connected():
-            raise Exception('Cannot connect to WiFi.')
-
-        # Periodic watchdog (every 60 s)
-        #machine.Timer(0).init(
-        #    period=60 * 1000,
-        #    mode=machine.Timer.PERIODIC,
-        #    callback=checkWiFi,
-        #)
-
-        # -- NTP time sync ----------------------------------------------------
-        status('Set Time')
-        ntptime.settime()
-
         # -- Load configuration -----------------------------------------------
         status('Load configuration')
         config_file = '/flash/SmartMeter.json'
         with open(config_file) as f:
             config = ujson.load(f)
         for key in ('id', 'password', 'contract_amperage',
+                    'wifi_ssid', 'wifi_password',
                     'collect_date', 'charge_func'):
             if key not in config:
                 raise Exception(f'{key} is not defined in SmartMeter.json')
@@ -359,7 +327,7 @@ if __name__ == '__main__':
                 if key not in config['mqtt']:
                     raise Exception(f'mqtt.{key} is not defined in SmartMeter.json')
 
-        mday_calendar_file = '/flash/calendar_' + str(localtime()[0]) + '.json' # 検針日カレンダーフ>ァイル名
+        mday_calendar_file = '/flash/calendar_' + str(utime.localtime()[0]) + '.json' # 検針日カレンダーフ>ァイル名
         try:
             with open(mday_calendar_file, 'r') as f:
                 config_cal = ujson.load(f)
@@ -372,6 +340,20 @@ if __name__ == '__main__':
             config['collect_date'] = [int(config['collect_date'])]*13  # backward compatibility
         config['collect_date'][0] = config['collect_date'][12]
         logger.info('collect_date: %s', config['collect_date'])
+
+        # -- Wi-Fi ------------------------------------------------------------
+        status('Connecting Wi-Fi')
+        _wifi_init()
+        for _t in range(30):
+            if checkWiFi():
+                break
+        if not _wifi_is_connected():
+            raise Exception('Cannot connect to WiFi.')
+
+        # -- NTP time sync ----------------------------------------------------
+        status('Set Time')
+        ntptime.settime()
+        logger.info('utime.localtime after ntptime.settime: %s', utime.localtime())
 
         # -- Create objects ---------------------------------------------------
         status('Create objects')
@@ -491,6 +473,7 @@ if __name__ == '__main__':
             if t % 30 == 0:
                 try:
                     if ambient_client:
+                        checkWiFi()
                         result = ambient_client.send({
                             'd1': amperage,
                             'd2': power_kw,

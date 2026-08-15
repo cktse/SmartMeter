@@ -4,10 +4,6 @@
 import json
 import utime
 
-def localtime():
-    offset = 9 * 3600  # JST
-    return utime.localtime(utime.mktime(utime.localtime()) + offset)
-
 class CalcCharge:
     def __init__(self, json_files=None, month=None):
         self.json_files = None
@@ -25,7 +21,7 @@ class CalcCharge:
         self.month = month
 
         if month is None:
-            month = localtime()
+            month = utime.localtime()
         key = f'{month[0]:04}-{month[1]:02}'
 
         self.db = {}
