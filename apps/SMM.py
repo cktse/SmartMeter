@@ -109,7 +109,8 @@ def _wifi_init():
     """Activate the STA interface; UIFlow 2 firmware reconnects automatically
     using credentials stored in config (removed firmware dependency)"""
     global _wifi_sta
-    _wifi_sta = network.WLAN(network.STA_IF)
+    if not _wifi_sta:
+        _wifi_sta = network.WLAN(network.STA_IF)
     _wifi_sta.active(True)
     _wifi_sta.connect(config['wifi_ssid'], config['wifi_password'])
 
@@ -120,7 +121,9 @@ def checkWiFi():
     """Non-blocking by design to allow sensor to continue to function even when wifi is down"""
     if not _wifi_is_connected():
         logger.warning('Wi-Fi lost – attempting reconnect')
-        _wifi_init()
+        _wifi_sta.active(False)
+        utime.sleep_ms(500)
+        _wifi_sta.active(True)
         utime.sleep_ms(500)
         if _wifi_is_connected():
             logger.info('Wi-Fi reconnected OK')
@@ -345,8 +348,9 @@ if __name__ == '__main__':
         status('Connecting Wi-Fi')
         _wifi_init()
         for _t in range(30):
-            if checkWiFi():
+            if _wifi_is_connected():
                 break
+            utime.sleep(1)
         if not _wifi_is_connected():
             raise Exception('Cannot connect to WiFi.')
 
