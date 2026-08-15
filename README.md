@@ -52,12 +52,12 @@ cd SmartMeter
 
 ### Dependencies
 
-Everything needed at runtime is either bundled with the UIFlow 2.0 firmware (`M5`, `umqtt.simple`, `network`, `machine`) or included in this repository (`BP35A1.py`, `mqtt.py`, `charge.py`, `chargedb.py`, `ntptime.py`, `logging.py`). No `pip install` step, no external service account.
+Everything needed at runtime is either bundled with the UIFlow 2.0 firmware (`M5`, `umqtt.simple`, `network`, `machine`) or included in this repository (`BP35A1.py`, `mqtt.py`, `charge.py`, `chargedb.py`, `ntptime.py`, `logging.py`). No `pip install` etc. to keep dependencies to a minimal. No external cloud services so all of your data stay local by default (unless you opt into Ambient -- see below).
 
-- `ntptime.py` here is the standard Micropython module with the NTP host defaulted to `jp.pool.ntp.org` -- copy it over the firmware version so the RTC is set from a nearby pool
-- `logging.py` is the micropython-lib logging module, copied in so the log level and format do not depend on what the firmware happens to ship
-- Timestamps from the meter are JST; the RTC itself runs in UTC and the JST offset is applied in code (`localtime()`), so do not "fix" this by setting the RTC to local time
-- [Ambient](https://ambidata.io/) is still supported as an optional cloud sink, but is no longer the primary path -- see [Ambient (optional)](#ambient-optional) below
+- `ntptime.py` here is the standard Micropython module with the NTP host defaulted to `jp.pool.ntp.org` -- TODO: revert to the firmware version to reduce clutter
+- `logging.py` is a simple fork of the micropython-lib logging module -- TODO: enable datetime logging; explore [micropython-ulogging](https://github.com/iabdalkader/micropython-ulogging)
+- [Home Assistant](https://www.home-assistant.io) integration (optional) is built-in via MQTT broker
+- [Ambient](https://ambidata.io/) is still available as an optional cloud sink -- see [Ambient (optional)](#ambient-optional) below
 
 ### Copy configuration file
 
@@ -73,6 +73,8 @@ Holds the Route B credential used to reach the smart meter, the contracted amper
 
 | Name              | Description                                        | Example                                              |
 | ----------------- | -------------------------------------------------- | ---------------------------------------------------- |
+| wifi_ssid         | Wi-Fi SSID                                         | "XXXXXXXXXXXX" |
+| wifi_password     | Wi-Fi Password                                     | "XXXXXXXXXXXX" |
 | id                | Route B ID (32 characters)                         | "000000XXXXXX00000000000000XXXXXX"                   |
 | password          | Route B password (12 characters)                   | "XXXXXXXXXXXX"                                       |
 | contract_amperage | Contracted amperage (契約アンペア数)               | "60"                                                 |
