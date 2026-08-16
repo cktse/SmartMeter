@@ -1,6 +1,8 @@
 # SmartMeter
 
-Part of my Japan "Smart Home" Project: monitor energy usage in real-time and publish into Home Assistant for trending and analysis. 
+Part of my Japan "Smart Home" Project: monitor energy usage in real-time and publish into Home Assistant for trending and analysis.
+<img width="1195" height="896" alt="SmartMeter+HA" src="https://github.com/user-attachments/assets/cf315b49-f745-462d-ad59-9f4e225b9ea9" />
+<img width="2812" height="1334" alt="SmartMeter+HA Dashboard" src="https://github.com/user-attachments/assets/c2f01d9c-fe23-45bb-ab14-00093bfc76d4" />
 
 As of 2026, most if not all meters in Japan have been upgraded to [Smart Meter](https://www.tepco.co.jp/en/pg/development/domestic/smartmeter-e.html) which supports the so called "Route B" service, made available electricity meter data in real-time over a 920Mhz radio [Wi-SUN](https://wi-sun.org/about/). Any consumer can apply for the Route B login credential and, with the right hardware and software, connect to the smart meter at home to monitor energy usage. This forms part of the [ECHONET Lite](https://echonet.jp/features_en/) standard which details the communication protocol between hundreds of different types of home appliances to enable home energy management systems.
 
