@@ -40,10 +40,10 @@ While a number of similar projects had existed for some time, I ended up chosing
 
 ### Firmware
 
-Flash the M5StickC-PLUS2 with UIFlow 2.0 firmware (V2.5.0 or later) using [M5Burner5](https://docs.m5stack.com/en/uiflow/m5burner/intro) Make sure the Boot Option `Run main.py directly` is selected instead of the default `Show startup menu and network setup`, which would break `mpremote`. Also make sure Timezone is `GMT+9`.
+Flash the M5StickC-PLUS2 with UIFlow 2.0 firmware (V2.5.0 or later) using [M5Burner](https://docs.m5stack.com/en/uiflow/m5burner/intro). Make sure the Boot Option `Run main.py directly` is selected instead of the default `Show startup menu and network setup`, which would break `mpremote`. Also make sure Timezone is `GMT+9`.
 
 ### Local Timezone Support
-Note that firmware comes with local timezone support (GMT+9 for Japan) which must be configured at the time of burning. There was a firmware bug (found on V2.4.3) which caused the timezone to flip-flop between GMT+9 and GMT-9 on every reboot which was resolved by upgrading to V2.5.0. This repository now assumes that utime.localtime() is reliable and hence removed the need for manual +9 hours offset in the code. If this becomes problematic for your specific device/firmware, consider hacking the +9 hours offset in `ntptime.py` when setting RTC.
+Note that firmware comes with local timezone support (GMT+9 for Japan) which must be configured at the time of burning. There was a firmware bug (found on V2.4.3) which caused the timezone to flip-flop between GMT+9 and GMT-9 on every reboot which was resolved by upgrading to V2.5.0. This repository now assumes that utime.localtime() is reliable and hence removed the need for manual +9 hours offset in the code. If this becomes problematic for your specific device/firmware, burn with Timezone `GMT+0` -- a zero offset has no sign to flip -- and add the +9 hours manually in `ntptime.py` when setting the RTC, so that `utime.localtime()` returns JST everywhere and no other code needs to change. Note that this leaves the RTC holding JST rather than UTC, which matters for anything that assumes the epoch is UTC.
 
 ### Clone this repository
 
