@@ -106,8 +106,8 @@ def _btnA_pressed(_):
 # Wi-Fi helpers  (replaces UIFlow-1 wifiCfg module)
 # ---------------------------------------------------------------------------
 def _wifi_init():
-    """Activate the STA interface; UIFlow 2 firmware reconnects automatically
-    using credentials stored in config (removed firmware dependency)"""
+    """Activate the STA interface and associate using the credentials in
+    SmartMeter.json (no dependency on what was stored in NVS at burn time)"""
     global _wifi_sta
     if not _wifi_sta:
         _wifi_sta = network.WLAN(network.STA_IF)
@@ -118,19 +118,32 @@ def _wifi_is_connected():
     return _wifi_sta and _wifi_sta.isconnected()
 
 def checkWiFi():
+    logger.debug('checkWifi: status=%s connected=%s', _wifi_sta.status(), _wifi_sta.isconnected())
+
     """Non-blocking by design to allow sensor to continue to function even when wifi is down"""
-    if not _wifi_is_connected():
-        logger.warning('Wi-Fi lost – attempting reconnect')
+    if _wifi_is_connected():
+        return True
+
+    # Toggling active() is not enough to reconnect: the association used to be
+    # re-established by the UIFlow 2 startup code from the credentials in NVS.
+    # With Boot Option `Run main.py directly` and the credentials in
+    # SmartMeter.json, connect() has to be re-issued here.
+    status = _wifi_sta.status()
+    if status == network.STAT_CONNECTING:
+        logger.info('Wi-Fi is connecting (status %s) - let it finish', status)
+        return False  # association already under way, let it finish
+
+    logger.warning('Wi-Fi lost (status %s) - attempting reconnect', status)
+    try:
+        _wifi_sta.connect(config['wifi_ssid'], config['wifi_password'])
+    except OSError as e:
+        # Driver refuses while busy or wedged; bounce the interface and let the
+        # next call re-issue connect()
+        logger.warning('Wi-Fi connect() failed: %s - bouncing interface', e)
         _wifi_sta.active(False)
         utime.sleep_ms(500)
         _wifi_sta.active(True)
-        utime.sleep_ms(500)
-        if _wifi_is_connected():
-            logger.info('Wi-Fi reconnected OK')
-        else:
-            logger.warning('Wi-Fi is still lost - will try again')
-            return False
-    return True
+    return False
 
 def publish_MQTT(values):
     global _mqtt_connected
@@ -348,7 +361,7 @@ if __name__ == '__main__':
         status('Connecting Wi-Fi')
         _wifi_init()
         for _t in range(30):
-            if _wifi_is_connected():
+            if checkWiFi():
                 break
             utime.sleep(1)
         if not _wifi_is_connected():
@@ -493,9 +506,14 @@ if __name__ == '__main__':
                     logger.exception(e)
                     retries += 1
 
-            # Every 1 h – keep-alive ping
+            # Every 1 h – keep-alive ping and NTP re-sync for RTC drift
             if t % 3600 == 0:
                 bp35a1.skPing()
+                try:
+                    ntptime.settime()
+                except Exception as e:
+                    # non-fatal here, unlike at start up: the clock is already set
+                    logger.warning('NTP re-sync failed: %s', e)
 
             utime.sleep(1)
             t = utime.time()
